@@ -36,6 +36,7 @@ import (
 	"go.pinniped.dev/internal/leaderelection"
 	"go.pinniped.dev/internal/plog"
 	"go.pinniped.dev/internal/tokenclient"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -85,6 +86,8 @@ type Config struct {
 
 	// ImpersonationProxyTokenCache holds short-lived tokens for the impersonation proxy service account.
 	ImpersonationProxyTokenCache tokenclient.ExpiringSingletonTokenCacheGet
+
+	BaseConfig *rest.Config // for unit testing, should always be nil in production
 
 	// ServingCertDuration is the validity period, in seconds, of the API serving certificate.
 	ServingCertDuration time.Duration
@@ -286,6 +289,7 @@ func PrepareControllers(c *Config) (controllerinit.RunnerBuilder, error) { //nol
 				c.ImpersonationSigningCertProvider,
 				plog.New(),
 				c.ImpersonationProxyTokenCache,
+				c.BaseConfig,
 			),
 			singletonWorker,
 		).

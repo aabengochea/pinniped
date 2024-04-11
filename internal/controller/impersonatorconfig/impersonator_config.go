@@ -46,6 +46,7 @@ import (
 	"go.pinniped.dev/internal/endpointaddr"
 	"go.pinniped.dev/internal/plog"
 	"go.pinniped.dev/internal/tokenclient"
+	"k8s.io/client-go/rest"
 )
 
 const (
@@ -87,6 +88,7 @@ type impersonatorConfigController struct {
 	log                               plog.Logger
 
 	impersonationProxyTokenCache tokenclient.ExpiringSingletonTokenCacheGet
+	baseConfig *rest.Config // for unit testing, should always be nil in production
 }
 
 func NewImpersonatorConfigController(
@@ -110,6 +112,7 @@ func NewImpersonatorConfigController(
 	impersonationSigningCertProvider dynamiccert.Provider,
 	log plog.Logger,
 	impersonationProxyTokenCache tokenclient.ExpiringSingletonTokenCacheGet,
+	baseConfig *rest.Config, // for unit testing, should always be nil in production
 ) controllerlib.Controller {
 	secretNames := sets.NewString(tlsSecretName, caSecretName, impersonationSignerSecretName)
 	log = log.WithName("impersonator-config-controller")
@@ -137,6 +140,7 @@ func NewImpersonatorConfigController(
 				tlsServingCertDynamicCertProvider: dynamiccert.NewServingCert("impersonation-proxy-serving-cert"),
 				log:                               log,
 				impersonationProxyTokenCache:      impersonationProxyTokenCache,
+				baseConfig:                        baseConfig,
 			},
 		},
 		withInformer(credentialIssuerInformer,
@@ -490,6 +494,7 @@ func (c *impersonatorConfigController) ensureImpersonatorIsStarted(syncCtx contr
 		c.tlsServingCertDynamicCertProvider,
 		c.impersonationSigningCertProvider,
 		c.impersonationProxyTokenCache,
+		c.baseConfig,
 	)
 	if err != nil {
 		return err
