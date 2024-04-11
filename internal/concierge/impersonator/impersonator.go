@@ -69,6 +69,7 @@ type FactoryFunc func(
 	dynamicCertProvider dynamiccert.Private,
 	impersonationProxySignerCA dynamiccert.Public,
 	impersonationProxyTokenCache tokenclient.ExpiringSingletonTokenCacheGet,
+	baseConfig *rest.Config, // for unit testing, should always be nil in production
 ) (func(stopCh <-chan struct{}) error, error)
 
 func New(
@@ -76,8 +77,9 @@ func New(
 	dynamicCertProvider dynamiccert.Private,
 	impersonationProxySignerCA dynamiccert.Public,
 	impersonationProxyTokenCache tokenclient.ExpiringSingletonTokenCacheGet,
+	baseConfig *rest.Config, // for unit testing, should always be nil in production
 ) (func(stopCh <-chan struct{}) error, error) {
-	return newInternal(port, dynamicCertProvider, impersonationProxySignerCA, kubeclient.Secure, impersonationProxyTokenCache, nil, nil, nil)
+	return newInternal(port, dynamicCertProvider, impersonationProxySignerCA, kubeclient.Secure, impersonationProxyTokenCache, baseConfig, nil, nil)
 }
 
 //nolint:funlen // It is definitely too complicated. New calls newInternal, which makes another function.

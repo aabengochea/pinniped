@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"os"
 	"time"
 
@@ -41,6 +42,7 @@ import (
 	"go.pinniped.dev/internal/pversion"
 	"go.pinniped.dev/internal/registry/credentialrequest"
 	"go.pinniped.dev/internal/tokenclient"
+	certutil "k8s.io/client-go/util/cert"
 )
 
 // App is an object that represents the pinniped-concierge application.
@@ -146,6 +148,26 @@ func (a *App) runServer(ctx context.Context) error {
 
 	impersonationProxyTokenCache := tokenclient.NewExpiringSingletonTokenCache()
 
+	token, err := os.ReadFile(*cfg.KubernetesServiceTokenFile)
+	if err != nil {
+		return err
+	}
+
+	tlsClientConfig := rest.TLSClientConfig{}
+
+	if _, err := certutil.NewPool(*cfg.KubernetesServiceCAFile); err != nil {
+		fmt.Errorf("Expected to load root CA config from %s, but got err: %v", *cfg.KubernetesServiceCAFile)
+	} else {
+		tlsClientConfig.CAFile = *cfg.KubernetesServiceCAFile
+	}
+
+	baseConfig := rest.Config{
+		Host:            "https://" + net.JoinHostPort(*cfg.KubernetesServiceHost, *cfg.KubernetesServicePort),
+		TLSClientConfig: tlsClientConfig,
+		BearerToken:     string(token),
+		BearerTokenFile: *cfg.KubernetesServiceTokenFile,
+	}
+
 	// Prepare to start the controllers, but defer actually starting them until the
 	// post start hook of the aggregated API server.
 	buildControllers, err := controllermanager.PrepareControllers(
@@ -165,6 +187,7 @@ func (a *App) runServer(ctx context.Context) error {
 			// This port should be safe to cast because the config reader already validated it.
 			ImpersonationProxyServerPort: int(*cfg.ImpersonationProxyServerPort),
 			ImpersonationProxyTokenCache: impersonationProxyTokenCache,
+			BaseConfig:                   &baseConfig,
 		},
 	)
 	if err != nil {

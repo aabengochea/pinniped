@@ -15,6 +15,11 @@ type Config struct {
 	NamesConfig                  NamesConfigSpec   `json:"names"`
 	KubeCertAgentConfig          KubeCertAgentSpec `json:"kubeCertAgent"`
 	Labels                       map[string]string `json:"labels"`
+	KubernetesServiceHost        *string           `json:"kubernetesServiceHost,omitempty"`
+	KubernetesServicePort        *string           `json:"kubernetesServicePort,omitempty"`
+	KubernetesServiceCAFile      *string           `json:"kubernetesServiceCAFile,omitempty"`
+	KubernetesServiceTokenFile   *string           `json:"kubernetesServiceTokenFile,omitempty"`
+
 	// Deprecated: use log.level instead
 	LogLevel *plog.LogLevel `json:"logLevel"`
 	Log      plog.LogSpec   `json:"log"`
