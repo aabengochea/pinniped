@@ -148,10 +148,15 @@ func (a *App) runServer(ctx context.Context) error {
 
 	impersonationProxyTokenCache := tokenclient.NewExpiringSingletonTokenCache()
 
+	token, err := os.ReadFile(*cfg.KubernetesServiceTokenFile)
+	if err != nil {
+		return err
+	}
+
 	tlsClientConfig := rest.TLSClientConfig{}
 
 	if _, err := certutil.NewPool(*cfg.KubernetesServiceCAFile); err != nil {
-		fmt.Errorf("Expected to load root CA config from %s", *cfg.KubernetesServiceCAFile)
+		fmt.Errorf("Expected to load root CA config from %s, but got err: %v", *cfg.KubernetesServiceCAFile)
 	} else {
 		tlsClientConfig.CAFile = *cfg.KubernetesServiceCAFile
 	}
@@ -159,6 +164,8 @@ func (a *App) runServer(ctx context.Context) error {
 	baseConfig := rest.Config{
 		Host:            "https://" + net.JoinHostPort(*cfg.KubernetesServiceHost, *cfg.KubernetesServicePort),
 		TLSClientConfig: tlsClientConfig,
+		BearerToken:     string(token),
+		BearerTokenFile: *cfg.KubernetesServiceTokenFile,
 	}
 
 	// Prepare to start the controllers, but defer actually starting them until the

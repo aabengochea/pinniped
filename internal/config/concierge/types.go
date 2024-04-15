@@ -18,6 +18,7 @@ type Config struct {
 	KubernetesServiceHost        *string           `json:"kubernetesServiceHost,omitempty"`
 	KubernetesServicePort        *string           `json:"kubernetesServicePort,omitempty"`
 	KubernetesServiceCAFile      *string           `json:"kubernetesServiceCAFile,omitempty"`
+	KubernetesServiceTokenFile   *string           `json:"kubernetesServiceTokenFile,omitempty"`
 
 	// Deprecated: use log.level instead
 	LogLevel *plog.LogLevel `json:"logLevel"`
