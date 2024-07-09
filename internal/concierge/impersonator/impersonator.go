@@ -290,35 +290,45 @@ func newInternal(
 		serverConfig.Authentication.Authenticator = blockAnonymousAuthenticator
 
 		delegatingAuthorizer := serverConfig.Authorization.Authorizer
+		allowedPatterns := []*regexp.Regexp{
+			regexp.MustCompile(`^/api/scheduling.k8s.io/[^/]+/priorityclasses(/.*)?$`),
+			regexp.MustCompile(`^/api/v1/namespaces(/.*)?$`),
+			regexp.MustCompile(`^/api/v1/nodes(/.*)?$`),
+			regexp.MustCompile(`^/api/v1/pods\?fieldSelector=spec.nodeName=.*$`),
+			regexp.MustCompile(`^/apis/coordination.k8s.io/[^/]+/namespaces/kube-node-lease/leases(/.*)?$`),
+			regexp.MustCompile(`^/apis/metrics.k8s.io/[^/]+/nodes(/.*)?$`),
+			regexp.MustCompile(`^/apis/networking.k8s.io/[^/]+/ingressclasses(/.*)?$`),
+			regexp.MustCompile(`^/apis/storage.k8s.io/[^/]+/storageclasses(/.*)?$`),
+			regexp.MustCompile(`^/apis/node.k8s.io/[^/]+/runtimeclasses(/.*)?$`),
+			regexp.MustCompile(`^/api/v1/persistentvolumes(/.*)?$`),
+		}
+
 		customReasonAuthorizer := &comparableAuthorizer{
 			AuthorizerFunc: func(ctx context.Context, a authorizer.Attributes) (authorizer.Decision, string, error) {
 				const baseReason = "decision made by impersonation-proxy.concierge.pinniped.dev"
-				switch a.GetVerb() {
-				case "":
-					// Empty string is disallowed because request info has had bugs in the past where it would leave it empty.
+				if a.GetVerb() == "" {
 					return authorizer.DecisionDeny, "invalid verb, " + baseReason, nil
-				default:
-					// Since we authenticate the requesting user, we are in the best position to correctly authorize them.
-					// When KAS does the check, it may run the check against our service account and not the requesting user
-					// (due to a bug in the code or any other internal SAR checks that the request processing does).
-					// This also handles the impersonate verb to allow for nested impersonation.
-					decision, reason, err := delegatingAuthorizer.Authorize(ctx, a)
-
-					// make it easier to detect when the impersonation proxy is authorizing a request vs KAS
-					switch len(reason) {
-					case 0:
-						reason = baseReason
-					default:
-						reason = reason + ", " + baseReason
-					}
-
-					return decision, reason, err
 				}
+
+				path := a.GetPath()
+				for _, pattern := range allowedPatterns {
+					if pattern.MatchString(path) {
+						return authorizer.DecisionAllow, "allowed action, " + baseReason, nil
+					}
+				}
+
+				decision, reason, err := delegatingAuthorizer.Authorize(ctx, a)
+				if len(reason) == 0 {
+					reason = baseReason
+				} else {
+					reason = reason + ", " + baseReason
+				}
+				return decision, reason, err
 			},
 		}
-		// Set our custom authorizer before calling Compete(), which will use it.
-		serverConfig.Authorization.Authorizer = customReasonAuthorizer
 
+		// Set our custom authorizer before calling Complete(), which will use it.
+		serverConfig.Authorization.Authorizer = customReasonAuthorizer
 		if recConfig != nil {
 			recConfig(serverConfig)
 		}
